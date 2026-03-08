@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}Randevular – Admin{% endblock %}
+
+{% block content %}
+<h2 class="fw-bold mb-4">
+    <i class="bi bi-clipboard-list me-2 text-primary"></i>Randevu Yönetimi
+</h2>
+
+<!-- Filtreler -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <form method="get" action="{{ url_for('admin') }}" class="row g-3 align-items-end">
+            <div class="col-sm-4">
+                <label for="tarih" class="form-label fw-semibold">Tarih</label>
+                <input type="date" class="form-control" id="tarih" name="tarih"
+                       value="{{ tarih_filtre }}">
+            </div>
+            <div class="col-sm-3">
+                <label for="berber_id" class="form-label fw-semibold">Uzman</label>
+                <select class="form-select" id="berber_id" name="berber_id">
+                    <option value="">Tümü</option>
+                    {% for b in berberler %}
+                        <option value="{{ b.id }}" {{ 'selected' if berber_filtre == b.id|string }}>
+                            {{ b.ad }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-sm-3">
+                <label for="durum" class="form-label fw-semibold">Durum</label>
+                <select class="form-select" id="durum" name="durum">
+                    <option value="">Tümü</option>
+                    <option value="Bekliyor" {{ 'selected' if durum_filtre == 'Bekliyor' }}>Bekliyor</option>
+                    <option value="Onaylandı" {{ 'selected' if durum_filtre == 'Onaylandı' }}>Onaylandı</option>
+                    <option value="İptal" {{ 'selected' if durum_filtre == 'İptal' }}>İptal</option>
+                </select>
+            </div>
+            <div class="col-sm-2 d-flex gap-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-funnel me-1"></i>Filtrele
+                </button>
+                <a href="{{ url_for('admin') }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-x-lg"></i>
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Randevu Tablosu -->
+{% if randevular %}
+    <p class="text-muted mb-3">Toplam <strong>{{ randevular | length }}</strong> randevu bulundu.</p>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle shadow-sm border-0 bg-white rounded-3 overflow-hidden">
+            <thead class="table-dark">
+                <tr>
+                    <th>#</th>
+                    <th>Müşteri</th>
+                    <th>Telefon</th>
+                    <th>Uzman</th>
+                    <th>Hizmet</th>
+                    <th>Tarih</th>
+                    <th>Saat</th>
+                    <th>Durum</th>
+                    <th>İşlem</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in randevular %}
+                <tr>
+                    <td>{{ r.id }}</td>
+                    <td class="fw-semibold">{{ r.musteri_ad }}</td>
+                    <td>{{ r.musteri_telefon }}</td>
+                    <td>
+                        {{ r.berber.ad }}
+                        <span class="badge bg-{{ 'primary' if r.berber.uzmanlik == 'Berber' else 'success' }} ms-1">
+                            {{ r.berber.uzmanlik }}
+                        </span>
+                    </td>
+                    <td>{{ r.hizmet.ad }}</td>
+                    <td>{{ r.tarih.strftime('%d.%m.%Y') }}</td>
+                    <td>{{ r.saat.strftime('%H:%M') }}</td>
+                    <td>
+                        {% if r.durum == 'Onaylandı' %}
+                            <span class="badge bg-success">{{ r.durum }}</span>
+                        {% elif r.durum == 'İptal' %}
+                            <span class="badge bg-danger">{{ r.durum }}</span>
+                        {% else %}
+                            <span class="badge bg-warning text-dark">{{ r.durum }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle"
+                                    type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                Durum
+                            </button>
+                            <ul class="dropdown-menu">
+                                {% for durum in ['Bekliyor', 'Onaylandı', 'İptal'] %}
+                                    {% if durum != r.durum %}
+                                    <li>
+                                        <form method="post"
+                                              action="{{ url_for('randevu_durum_guncelle', randevu_id=r.id) }}">
+                                            <input type="hidden" name="durum" value="{{ durum }}">
+                                            <button type="submit" class="dropdown-item">
+                                                {{ durum }}
+                                            </button>
+                                        </form>
+                                    </li>
+                                    {% endif %}
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% else %}
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle me-2"></i>Seçili kriterlere uygun randevu bulunamadı.
+    </div>
+{% endif %}
+
+<a href="{{ url_for('randevu_al') }}" class="btn btn-primary mt-2">
+    <i class="bi bi-calendar-plus me-1"></i>Yeni Randevu Al
+</a>
+{% endblock %}
