@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block title %}Randevu Al – Berber & Kuaför{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+        <h2 class="fw-bold mb-4">
+            <i class="bi bi-calendar-plus me-2 text-primary"></i>Randevu Al
+        </h2>
+
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4">
+                <form method="post" action="{{ url_for('randevu_al') }}" id="randevu-form" novalidate>
+                    <!-- Müşteri Bilgileri -->
+                    <h5 class="fw-semibold mb-3 text-secondary">
+                        <i class="bi bi-person me-1"></i>Müşteri Bilgileri
+                    </h5>
+
+                    <div class="mb-3">
+                        <label for="musteri_ad" class="form-label">Ad Soyad <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="musteri_ad" name="musteri_ad"
+                               placeholder="Adınız ve soyadınız" required>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="musteri_telefon" class="form-label">Telefon <span class="text-danger">*</span></label>
+                        <input type="tel" class="form-control" id="musteri_telefon" name="musteri_telefon"
+                               placeholder="05XX XXX XX XX" required>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <!-- Uzman & Hizmet -->
+                    <h5 class="fw-semibold mb-3 text-secondary">
+                        <i class="bi bi-scissors me-1"></i>Uzman & Hizmet
+                    </h5>
+
+                    <div class="mb-3">
+                        <label for="berber_id" class="form-label">Berber / Kuaför <span class="text-danger">*</span></label>
+                        <select class="form-select" id="berber_id" name="berber_id" required>
+                            <option value="">-- Seçiniz --</option>
+                            <optgroup label="Berberler">
+                                {% for b in berberler if b.uzmanlik == 'Berber' %}
+                                    <option value="{{ b.id }}" data-uzmanlik="{{ b.uzmanlik }}">{{ b.ad }}</option>
+                                {% endfor %}
+                            </optgroup>
+                            <optgroup label="Kuaförler">
+                                {% for b in berberler if b.uzmanlik == 'Kuaför' %}
+                                    <option value="{{ b.id }}" data-uzmanlik="{{ b.uzmanlik }}">{{ b.ad }}</option>
+                                {% endfor %}
+                            </optgroup>
+                        </select>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="hizmet_id" class="form-label">Hizmet <span class="text-danger">*</span></label>
+                        <select class="form-select" id="hizmet_id" name="hizmet_id" required>
+                            <option value="">-- Önce uzman seçiniz --</option>
+                            {% for h in hizmetler %}
+                                <option value="{{ h.id }}"
+                                        data-uzmanlik="{{ h.uzmanlik }}"
+                                        data-sure="{{ h.sure_dk }}"
+                                        data-fiyat="{{ h.fiyat }}">
+                                    {{ h.ad }} – {{ h.sure_dk }} dk – {{ h.fiyat | int }} ₺
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <div id="hizmet-bilgi" class="form-text d-none">
+                            <i class="bi bi-info-circle me-1"></i>
+                            <span id="hizmet-bilgi-metin"></span>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <!-- Tarih & Saat -->
+                    <h5 class="fw-semibold mb-3 text-secondary">
+                        <i class="bi bi-calendar2 me-1"></i>Tarih & Saat
+                    </h5>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-sm-6">
+                            <label for="tarih" class="form-label">Tarih <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" id="tarih" name="tarih"
+                                   min="{{ bugun }}" required>
+                        </div>
+                        <div class="col-sm-6">
+                            <label for="saat" class="form-label">Saat <span class="text-danger">*</span></label>
+                            <select class="form-select" id="saat" name="saat" required>
+                                <option value="">-- Seçiniz --</option>
+                                {% set saatler = [
+                                    '09:00','09:30','10:00','10:30','11:00','11:30',
+                                    '12:00','12:30','13:00','13:30','14:00','14:30',
+                                    '15:00','15:30','16:00','16:30','17:00','17:30',
+                                    '18:00','18:30'
+                                ] %}
+                                {% for s in saatler %}
+                                    <option value="{{ s }}">{{ s }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="notlar" class="form-label">Notlar</label>
+                        <textarea class="form-control" id="notlar" name="notlar" rows="3"
+                                  placeholder="İsteğiniz veya ek bilgi (opsiyonel)"></textarea>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg fw-semibold">
+                            <i class="bi bi-check2-circle me-1"></i>Randevu Oluştur
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    'use strict';
+
+    const berberSel = document.getElementById('berber_id');
+    const hizmetSel = document.getElementById('hizmet_id');
+    const hizmetBilgi = document.getElementById('hizmet-bilgi');
+    const hizmetBilgiMetin = document.getElementById('hizmet-bilgi-metin');
+
+    // Pre-select barber from URL parameter
+    const params = new URLSearchParams(window.location.search);
+    const barberId = params.get('berber_id');
+    if (barberId) {
+        berberSel.value = barberId;
+        filterHizmetler();
+    }
+
+    berberSel.addEventListener('change', filterHizmetler);
+    hizmetSel.addEventListener('change', showHizmetInfo);
+
+    function filterHizmetler() {
+        const selected = berberSel.options[berberSel.selectedIndex];
+        const uzmanlik = selected ? selected.dataset.uzmanlik : '';
+
+        hizmetSel.innerHTML = '<option value="">-- Seçiniz --</option>';
+        hizmetBilgi.classList.add('d-none');
+
+        const allOptions = {{ hizmetler_json | tojson }};
+
+        allOptions.forEach(function (h) {
+            if (!uzmanlik || h.uzmanlik === uzmanlik || h.uzmanlik === 'Her İkisi') {
+                const opt = document.createElement('option');
+                opt.value = h.id;
+                opt.dataset.sure = h.sure_dk;
+                opt.dataset.fiyat = h.fiyat;
+                opt.dataset.uzmanlik = h.uzmanlik;
+                opt.textContent = h.ad + ' – ' + h.sure_dk + ' dk – ' + parseInt(h.fiyat) + ' ₺';
+                hizmetSel.appendChild(opt);
+            }
+        });
+    }
+
+    function showHizmetInfo() {
+        const selected = hizmetSel.options[hizmetSel.selectedIndex];
+        if (selected && selected.value) {
+            hizmetBilgiMetin.textContent =
+                'Süre: ' + selected.dataset.sure + ' dk | Ücret: ' +
+                parseInt(selected.dataset.fiyat) + ' ₺';
+            hizmetBilgi.classList.remove('d-none');
+        } else {
+            hizmetBilgi.classList.add('d-none');
+        }
+    }
+}());
+</script>
+{% endblock %}

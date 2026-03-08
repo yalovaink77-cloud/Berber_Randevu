@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Ana Sayfa – Berber & Kuaför Randevu{% endblock %}
+
+{% block content %}
+<!-- Hero -->
+<div class="hero-section rounded-3 text-white text-center p-5 mb-5">
+    <h1 class="display-5 fw-bold">
+        <i class="bi bi-scissors me-2"></i>Berber & Kuaför Randevu
+    </h1>
+    <p class="lead">Kolayca randevu alın, zamanınızı verimli kullanın.</p>
+    <a href="{{ url_for('randevu_al') }}" class="btn btn-warning btn-lg fw-semibold mt-2">
+        <i class="bi bi-calendar-plus me-1"></i>Hemen Randevu Al
+    </a>
+</div>
+
+<!-- Berberler / Kuaförler -->
+<h2 class="mb-4 fw-bold">Uzmanlarımız</h2>
+
+{% if berberler %}
+    <!-- Berberler -->
+    <h4 class="text-secondary mb-3"><i class="bi bi-person-badge me-2"></i>Berberler</h4>
+    <div class="row g-4 mb-5">
+        {% for b in berberler if b.uzmanlik == 'Berber' %}
+        <div class="col-sm-6 col-lg-4">
+            <div class="card h-100 shadow-sm border-0">
+                <div class="card-body text-center">
+                    <div class="uzman-avatar bg-primary text-white rounded-circle mx-auto mb-3">
+                        <i class="bi bi-person-fill fs-2"></i>
+                    </div>
+                    <h5 class="card-title fw-semibold">{{ b.ad }}</h5>
+                    <span class="badge bg-primary mb-2">{{ b.uzmanlik }}</span>
+                    {% if b.telefon %}
+                        <p class="card-text text-muted small">
+                            <i class="bi bi-telephone me-1"></i>{{ b.telefon }}
+                        </p>
+                    {% endif %}
+                    <a href="{{ url_for('randevu_al') }}?berber_id={{ b.id }}"
+                       class="btn btn-outline-primary btn-sm mt-2">
+                        <i class="bi bi-calendar-check me-1"></i>Randevu Al
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Kuaförler -->
+    <h4 class="text-secondary mb-3"><i class="bi bi-person-badge me-2"></i>Kuaförler</h4>
+    <div class="row g-4 mb-5">
+        {% for b in berberler if b.uzmanlik == 'Kuaför' %}
+        <div class="col-sm-6 col-lg-4">
+            <div class="card h-100 shadow-sm border-0">
+                <div class="card-body text-center">
+                    <div class="uzman-avatar bg-success text-white rounded-circle mx-auto mb-3">
+                        <i class="bi bi-person-fill fs-2"></i>
+                    </div>
+                    <h5 class="card-title fw-semibold">{{ b.ad }}</h5>
+                    <span class="badge bg-success mb-2">{{ b.uzmanlik }}</span>
+                    {% if b.telefon %}
+                        <p class="card-text text-muted small">
+                            <i class="bi bi-telephone me-1"></i>{{ b.telefon }}
+                        </p>
+                    {% endif %}
+                    <a href="{{ url_for('randevu_al') }}?berber_id={{ b.id }}"
+                       class="btn btn-outline-success btn-sm mt-2">
+                        <i class="bi bi-calendar-check me-1"></i>Randevu Al
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <p class="text-muted">Henüz kayıtlı uzman bulunmuyor.</p>
+{% endif %}
+
+<!-- Nasıl Çalışır -->
+<div class="row g-4 text-center mt-2 mb-4">
+    <h2 class="fw-bold mb-3">Nasıl Çalışır?</h2>
+    <div class="col-md-4">
+        <div class="p-4 bg-light rounded-3 h-100">
+            <i class="bi bi-person-check fs-1 text-primary mb-3 d-block"></i>
+            <h5 class="fw-semibold">1. Uzmanı Seç</h5>
+            <p class="text-muted mb-0">Berber veya kuaförünüzü listeden seçin.</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="p-4 bg-light rounded-3 h-100">
+            <i class="bi bi-calendar2-check fs-1 text-warning mb-3 d-block"></i>
+            <h5 class="fw-semibold">2. Tarih & Saat Seç</h5>
+            <p class="text-muted mb-0">Size uygun tarih ve saati belirleyin.</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="p-4 bg-light rounded-3 h-100">
+            <i class="bi bi-check2-circle fs-1 text-success mb-3 d-block"></i>
+            <h5 class="fw-semibold">3. Onayla</h5>
+            <p class="text-muted mb-0">Randevunuzu onaylayın ve beklemeyin.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
