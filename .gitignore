@@ -16,3 +16,5 @@ pids
 *.swp
 *.swo
 *~
+claudeapikey
+supabase_key
