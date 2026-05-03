@@ -1,128 +1,78 @@
-const { createClient } = require('@supabase/supabase-js');
+const mongoose = require('mongoose');
 const { v4: uuidv4 } = require('uuid');
+const User = require('../models/User');
+const Appointment = require('../models/Appointment');
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_KEY
-);
+// MongoDB bağlantısı
+if (!mongoose.connection.readyState) {
+  mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/berber_randevu')
+    .then(() => console.log('✅ MongoDB bağlantısı başarılı'))
+    .catch(err => console.error('❌ MongoDB bağlantı hatası:', err.message));
+}
 
 class DatabaseService {
 
-  // ===== USER İŞLEMLERİ =====
-
   static async createUser(userData) {
-    const { data, error } = await supabase
-      .from('users')
-      .insert([{
-        id: uuidv4(),
-        name: userData.name,
-        phone: userData.phone,
-        email: userData.email,
-        role: userData.role || 'customer',
-        specialties: userData.specialties || [],
-        work_days: userData.workDays,
-        work_hours: userData.workHours,
-        preferences: userData.preferences,
-      }])
-      .select()
-      .single();
-    if (error) throw new Error(`Kullanıcı oluşturma hatası: ${error.message}`);
-    return data;
+    return await User.create({
+      id: uuidv4(),
+      name: userData.name,
+      phone: userData.phone,
+      email: userData.email,
+      role: userData.role || 'customer',
+      specialties: userData.specialties || [],
+      workDays: userData.workDays,
+      workHours: userData.workHours,
+      preferences: userData.preferences,
+    });
   }
 
   static async getUserById(userId) {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', userId)
-      .single();
-    if (error) return null;
-    return data;
+    return await User.findOne({ id: userId });
   }
 
   static async getUserByPhone(phone) {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('phone', phone)
-      .single();
-    if (error) return null;
-    return data;
+    return await User.findOne({ phone });
   }
 
   static async getAllBarbers() {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('role', 'barber');
-    if (error) throw new Error(`Berber getirme hatası: ${error.message}`);
-    return data || [];
+    return await User.find({ role: 'barber' });
   }
 
   static async updateUser(userId, updateData) {
-    const { data, error } = await supabase
-      .from('users')
-      .update({ ...updateData, updated_at: new Date() })
-      .eq('id', userId)
-      .select()
-      .single();
-    if (error) throw new Error(`Kullanıcı güncelleme hatası: ${error.message}`);
-    return data;
+    return await User.findOneAndUpdate(
+      { id: userId },
+      { ...updateData, updatedAt: new Date() },
+      { new: true }
+    );
   }
 
-  // ===== APPOINTMENT İŞLEMLERİ =====
-
   static async createAppointment(appointmentData) {
-    const { data, error } = await supabase
-      .from('appointments')
-      .insert([{
-        id: uuidv4(),
-        customer_id: appointmentData.customerId,
-        customer_name: appointmentData.customerName,
-        customer_phone: appointmentData.customerPhone,
-        barber_id: appointmentData.barberId,
-        barber_name: appointmentData.barberName,
-        service_type: appointmentData.serviceType || 'haircut',
-        appointment_date: appointmentData.appointmentDate,
-        duration: appointmentData.duration || 30,
-        notes: appointmentData.notes,
-        price: appointmentData.price,
-        status: 'pending',
-      }])
-      .select()
-      .single();
-    if (error) throw new Error(`Randevu oluşturma hatası: ${error.message}`);
-    return data;
+    return await Appointment.create({
+      id: uuidv4(),
+      customerId: appointmentData.customerId,
+      customerName: appointmentData.customerName,
+      customerPhone: appointmentData.customerPhone,
+      barberId: appointmentData.barberId,
+      barberName: appointmentData.barberName,
+      serviceType: appointmentData.serviceType || 'haircut',
+      appointmentDate: appointmentData.appointmentDate,
+      duration: appointmentData.duration || 30,
+      notes: appointmentData.notes,
+      price: appointmentData.price,
+      status: 'pending',
+    });
   }
 
   static async getAppointmentById(appointmentId) {
-    const { data, error } = await supabase
-      .from('appointments')
-      .select('*')
-      .eq('id', appointmentId)
-      .single();
-    if (error) return null;
-    return data;
+    return await Appointment.findOne({ id: appointmentId });
   }
 
   static async getAppointmentsByCustomer(customerId) {
-    const { data, error } = await supabase
-      .from('appointments')
-      .select('*')
-      .eq('customer_id', customerId)
-      .order('appointment_date', { ascending: false });
-    if (error) throw new Error(`Müşteri randevuları hatası: ${error.message}`);
-    return data || [];
+    return await Appointment.find({ customerId }).sort({ appointmentDate: -1 });
   }
 
   static async getAppointmentsByBarber(barberId) {
-    const { data, error } = await supabase
-      .from('appointments')
-      .select('*')
-      .eq('barber_id', barberId)
-      .order('appointment_date', { ascending: true });
-    if (error) throw new Error(`Berber randevuları hatası: ${error.message}`);
-    return data || [];
+    return await Appointment.find({ barberId }).sort({ appointmentDate: 1 });
   }
 
   static async getAvailableSlots(barberId, date) {
@@ -130,38 +80,27 @@ class DatabaseService {
     startOfDay.setHours(0, 0, 0, 0);
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
-
-    const { data, error } = await supabase
-      .from('appointments')
-      .select('*')
-      .eq('barber_id', barberId)
-      .gte('appointment_date', startOfDay.toISOString())
-      .lte('appointment_date', endOfDay.toISOString())
-      .neq('status', 'cancelled');
-    if (error) throw new Error(`Boş saatler hatası: ${error.message}`);
-    return data || [];
+    return await Appointment.find({
+      barberId,
+      appointmentDate: { $gte: startOfDay, $lte: endOfDay },
+      status: { $ne: 'cancelled' },
+    });
   }
 
   static async updateAppointment(appointmentId, updateData) {
-    const { data, error } = await supabase
-      .from('appointments')
-      .update({ ...updateData, updated_at: new Date() })
-      .eq('id', appointmentId)
-      .select()
-      .single();
-    if (error) throw new Error(`Randevu güncelleme hatası: ${error.message}`);
-    return data;
+    return await Appointment.findOneAndUpdate(
+      { id: appointmentId },
+      { ...updateData, updatedAt: new Date() },
+      { new: true }
+    );
   }
 
   static async cancelAppointment(appointmentId) {
-    const { data, error } = await supabase
-      .from('appointments')
-      .update({ status: 'cancelled', updated_at: new Date() })
-      .eq('id', appointmentId)
-      .select()
-      .single();
-    if (error) throw new Error(`Randevu iptal hatası: ${error.message}`);
-    return data;
+    return await Appointment.findOneAndUpdate(
+      { id: appointmentId },
+      { status: 'cancelled', updatedAt: new Date() },
+      { new: true }
+    );
   }
 
   static async getAppointmentsByDate(date) {
@@ -169,32 +108,20 @@ class DatabaseService {
     startOfDay.setHours(0, 0, 0, 0);
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
-
-    const { data, error } = await supabase
-      .from('appointments')
-      .select('*')
-      .gte('appointment_date', startOfDay.toISOString())
-      .lte('appointment_date', endOfDay.toISOString())
-      .order('appointment_date', { ascending: true });
-    if (error) throw new Error(`Tarih randevuları hatası: ${error.message}`);
-    return data || [];
+    return await Appointment.find({
+      appointmentDate: { $gte: startOfDay, $lte: endOfDay },
+    }).sort({ appointmentDate: 1 });
   }
 
   static async getUpcomingAppointments(barberId, days = 7) {
     const now = new Date();
     const futureDate = new Date();
-    futureDate.setDate(futureDate.getDate() + days);
-
-    const { data, error } = await supabase
-      .from('appointments')
-      .select('*')
-      .eq('barber_id', barberId)
-      .gte('appointment_date', now.toISOString())
-      .lte('appointment_date', futureDate.toISOString())
-      .neq('status', 'cancelled')
-      .order('appointment_date', { ascending: true });
-    if (error) throw new Error(`Yaklaşan randevular hatası: ${error.message}`);
-    return data || [];
+    futureDate.setDate(futureDate.getDate() + Number(days));
+    return await Appointment.find({
+      barberId,
+      appointmentDate: { $gte: now, $lte: futureDate },
+      status: { $ne: 'cancelled' },
+    }).sort({ appointmentDate: 1 });
   }
 }
 

@@ -2,6 +2,8 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const appointmentRoutes = require('./dashboard/routes');
+const authRoutes = require('./dashboard/authRoutes');
+const { authenticate } = require('./middleware/auth');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -9,7 +11,8 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-app.use('/api/appointments', appointmentRoutes);
+app.use('/api/auth', authRoutes);
+app.use('/api/appointments', authenticate, appointmentRoutes);
 // WhatsApp Webhook
 const whatsappService = require('./services/whatsappService');
 const conversationService = require('./services/conversationService');

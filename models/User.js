@@ -24,6 +24,10 @@ const userSchema = new mongoose.Schema({
     enum: ['barber', 'customer'],
     default: 'customer',
   },
+  passwordHash: {
+    type: String,
+    select: false, // Sorgularda varsayılan olarak gelmez
+  },
   // Berber için özel alanlar
   specialties: [
     {
