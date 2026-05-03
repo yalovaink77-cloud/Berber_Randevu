@@ -10,6 +10,8 @@ const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
+app.use(express.static("dashboard/public"));
+app.use(express.static("dashboard/public"));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/appointments', authenticate, appointmentRoutes);
