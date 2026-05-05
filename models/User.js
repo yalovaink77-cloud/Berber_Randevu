@@ -26,7 +26,6 @@ const userSchema = new mongoose.Schema({
   },
   passwordHash: {
     type: String,
-    select: false, // Sorgularda varsayılan olarak gelmez
   },
   // Berber için özel alanlar
   specialties: [
