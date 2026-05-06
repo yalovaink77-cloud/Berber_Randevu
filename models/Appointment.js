@@ -28,7 +28,7 @@ const appointmentSchema = new mongoose.Schema({
   },
   serviceType: {
     type: String,
-    enum: ['haircut', 'shave', 'beard_trim', 'full_service', 'other'],
+    enum: ['haircut', 'shave', 'beard_trim', 'full_service', 'hair_coloring', 'hair_wash', 'other'],
     default: 'haircut',
   },
   appointmentDate: {

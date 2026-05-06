@@ -2,12 +2,21 @@ const mongoose = require('mongoose');
 const { v4: uuidv4 } = require('uuid');
 const User = require('../models/User');
 const Appointment = require('../models/Appointment');
+const Contact = require('../models/Contact');
+const MissedCall = require('../models/MissedCall');
 
 // MongoDB bağlantısı
 if (!mongoose.connection.readyState) {
-  mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/berber_randevu')
+  mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/berber_randevu', {
+    serverSelectionTimeoutMS: Number(process.env.MONGODB_SERVER_SELECTION_TIMEOUT_MS || 5000),
+  })
     .then(() => console.log('✅ MongoDB bağlantısı başarılı'))
-    .catch(err => console.error('❌ MongoDB bağlantı hatası:', err.message));
+    .catch((err) => {
+      console.error('❌ MongoDB bağlantı hatası:', err.message);
+      if (process.env.NODE_ENV === 'production') {
+        process.exit(1);
+      }
+    });
 }
 
 class DatabaseService {
@@ -19,6 +28,11 @@ class DatabaseService {
       phone: userData.phone,
       email: userData.email,
       role: userData.role || 'customer',
+      businessName: userData.businessName,
+      businessAddress: userData.businessAddress,
+      assistantStatus: userData.assistantStatus || 'working',
+      assistantSettings: userData.assistantSettings,
+      onboarding: userData.onboarding,
       specialties: userData.specialties || [],
       workDays: userData.workDays,
       workHours: userData.workHours,
@@ -38,12 +52,97 @@ class DatabaseService {
     return await User.find({ role: 'barber' });
   }
 
+  static async upsertContact(ownerId, contactData) {
+    return await Contact.findOneAndUpdate(
+      { ownerId, phone: contactData.phone },
+      {
+        $set: {
+          name: contactData.name,
+          category: contactData.category || 'unknown',
+          autoReplyEnabled: contactData.autoReplyEnabled !== false,
+          notes: contactData.notes,
+          lastInteractionAt: new Date(),
+          updatedAt: new Date(),
+        },
+        $setOnInsert: {
+          id: uuidv4(),
+          ownerId,
+          phone: contactData.phone,
+          createdAt: new Date(),
+        },
+      },
+      { returnDocument: 'after', upsert: true, setDefaultsOnInsert: true }
+    );
+  }
+
+  static async getContactByPhone(ownerId, phone) {
+    return await Contact.findOne({ ownerId, phone });
+  }
+
+  static async getContacts(ownerId, category) {
+    const query = { ownerId };
+    if (category) query.category = category;
+    return await Contact.find(query).sort({ updatedAt: -1 });
+  }
+
+  static async createMissedCall(callData) {
+    return await MissedCall.create({
+      id: uuidv4(),
+      barberId: callData.barberId,
+      fromPhone: callData.fromPhone,
+      fromName: callData.fromName,
+      contactCategory: callData.contactCategory || 'unknown',
+      barberStatus: callData.barberStatus || 'working',
+      autoReplyMessage: callData.autoReplyMessage,
+      autoReplyAction: callData.autoReplyAction || 'manual_review',
+      autoReplySent: callData.autoReplySent || false,
+      replyChannel: callData.replyChannel || 'whatsapp',
+      callAt: callData.callAt || new Date(),
+    });
+  }
+
+  static async getMissedCalls(barberId, limit = 25) {
+    return await MissedCall.find({ barberId })
+      .sort({ callAt: -1 })
+      .limit(Number(limit));
+  }
+
+  static async hasAppointmentHistoryWithPhone(barberId, phone) {
+    const count = await Appointment.countDocuments({
+      barberId,
+      customerPhone: phone,
+    });
+    return count > 0;
+  }
+
   static async updateUser(userId, updateData) {
     return await User.findOneAndUpdate(
       { id: userId },
       { ...updateData, updatedAt: new Date() },
-      { new: true }
+      { returnDocument: 'after' }
     );
+  }
+
+  static async updateBarberProfile(userId, profileData) {
+    return await User.findOneAndUpdate(
+      { id: userId, role: 'barber' },
+      {
+        ...profileData,
+        updatedAt: new Date(),
+      },
+      { returnDocument: 'after' }
+    ).select('-passwordHash -__v');
+  }
+
+  static async updateAssistantStatus(userId, assistantStatus) {
+    return await User.findOneAndUpdate(
+      { id: userId, role: 'barber' },
+      {
+        assistantStatus,
+        updatedAt: new Date(),
+      },
+      { returnDocument: 'after' }
+    ).select('-passwordHash -__v');
   }
 
   static async createAppointment(appointmentData) {
@@ -75,6 +174,13 @@ class DatabaseService {
     return await Appointment.find({ barberId }).sort({ appointmentDate: 1 });
   }
 
+  static async getActiveAppointmentsByBarber(barberId) {
+    return await Appointment.find({
+      barberId,
+      status: { $ne: 'cancelled' },
+    }).sort({ appointmentDate: 1 });
+  }
+
   static async getAvailableSlots(barberId, date) {
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);
@@ -91,7 +197,7 @@ class DatabaseService {
     return await Appointment.findOneAndUpdate(
       { id: appointmentId },
       { ...updateData, updatedAt: new Date() },
-      { new: true }
+      { returnDocument: 'after' }
     );
   }
 
@@ -99,7 +205,7 @@ class DatabaseService {
     return await Appointment.findOneAndUpdate(
       { id: appointmentId },
       { status: 'cancelled', updatedAt: new Date() },
-      { new: true }
+      { returnDocument: 'after' }
     );
   }
 

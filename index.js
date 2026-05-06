@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const appointmentRoutes = require('./dashboard/routes');
 const authRoutes = require('./dashboard/authRoutes');
+const assistantRoutes = require('./dashboard/assistantRoutes');
 const { authenticate } = require('./middleware/auth');
 
 const app = express();
@@ -11,10 +12,10 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 app.use(express.static("dashboard/public"));
-app.use(express.static("dashboard/public"));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/appointments', authenticate, appointmentRoutes);
+app.use('/api/assistant', authenticate, assistantRoutes);
 // WhatsApp Webhook
 const whatsappService = require('./services/whatsappService');
 const conversationService = require('./services/conversationService');

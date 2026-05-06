@@ -28,6 +28,60 @@ const userSchema = new mongoose.Schema({
     type: String,
   },
   // Berber için özel alanlar
+  businessName: {
+    type: String,
+  },
+  businessAddress: {
+    type: String,
+  },
+  assistantStatus: {
+    type: String,
+    enum: ['available', 'working', 'break', 'closed'],
+    default: 'working',
+  },
+  assistantSettings: {
+    missedCallAutoReply: {
+      type: Boolean,
+      default: false,
+    },
+    unknownCallerAutoReply: {
+      type: Boolean,
+      default: false,
+    },
+    privateContactAutoReply: {
+      type: Boolean,
+      default: false,
+    },
+    defaultReplyChannel: {
+      type: String,
+      enum: ['whatsapp', 'sms', 'none'],
+      default: 'whatsapp',
+    },
+  },
+  onboarding: {
+    profileCompleted: {
+      type: Boolean,
+      default: false,
+    },
+    contactsImported: {
+      type: Boolean,
+      default: false,
+    },
+    permissionsGranted: {
+      contacts: {
+        type: Boolean,
+        default: false,
+      },
+      phoneState: {
+        type: Boolean,
+        default: false,
+      },
+      notifications: {
+        type: Boolean,
+        default: false,
+      },
+    },
+  },
   specialties: [
     {
       type: String, // Saç kesimi, tıraş vb.

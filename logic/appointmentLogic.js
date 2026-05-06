@@ -3,13 +3,25 @@ const WhatsAppService = require('../services/whatsappService');
 const AIService = require('../services/aiService');
 
 class AppointmentLogic {
+  static buildAppointmentDate(preferredDate, preferredTime) {
+    if (!preferredDate) {
+      return new Date();
+    }
+
+    if (preferredTime) {
+      return new Date(`${preferredDate}T${preferredTime}:00`);
+    }
+
+    return new Date(preferredDate);
+  }
+
   /**
    * Yeni randevu oluştur
    */
   static async createAppointment(appointmentData) {
     try {
       // Bağımsızlık kontrolü - başka randevu var mı?
-      const barberAppointments = await DatabaseService.getAppointmentsByBarber(
+      const barberAppointments = await DatabaseService.getActiveAppointmentsByBarber(
         appointmentData.barberId
       );
 
@@ -73,7 +85,7 @@ class AppointmentLogic {
 
       // Eğer tarih/saat değişirse çakışma kontrolü yap
       if (updateData.appointmentDate) {
-        const barberAppointments = await DatabaseService.getAppointmentsByBarber(
+        const barberAppointments = await DatabaseService.getActiveAppointmentsByBarber(
           oldAppointment.barberId
         );
 
@@ -168,7 +180,7 @@ class AppointmentLogic {
         barberId: selectedBarber.id,
         barberName: selectedBarber.name,
         serviceType: analysis.serviceType,
-        appointmentDate: analysis.preferredDate || new Date(),
+        appointmentDate: this.buildAppointmentDate(analysis.preferredDate, analysis.preferredTime),
         notes: analysis.additionalNotes,
       };
 

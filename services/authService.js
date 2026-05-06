@@ -5,8 +5,29 @@ const User = require('../models/User');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'degistir_bunu_production_da';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
+const VALID_ROLES = ['barber', 'customer'];
+
+if (process.env.NODE_ENV === 'production' && JWT_SECRET === 'degistir_bunu_production_da') {
+  throw new Error('Production ortamında JWT_SECRET zorunludur');
+}
 
 async function register({ name, phone, email, password, role = 'customer' }) {
+  if (!VALID_ROLES.includes(role)) {
+    const err = new Error('Geçersiz kullanıcı rolü');
+    err.status = 400;
+    throw err;
+  }
+
+  if (
+    role === 'barber' &&
+    process.env.NODE_ENV === 'production' &&
+    String(process.env.ALLOW_BARBER_REGISTRATION || 'false').toLowerCase() !== 'true'
+  ) {
+    const err = new Error('Berber kaydı production ortamında kapalı');
+    err.status = 403;
+    throw err;
+  }
+
   const existing = await User.findOne({ phone });
   if (existing) {
     const err = new Error('Bu telefon numarası zaten kayıtlı');

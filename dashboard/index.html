@@ -146,6 +146,20 @@
     color: var(--muted);
   }
 
+  .status-select {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 7px 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    outline: none;
+  }
+
+  .status-select:focus {
+    border-color: var(--gold-dim);
+  }
+
   .btn-logout {
     background: none;
     border: 1px solid var(--border);
@@ -367,6 +381,52 @@
   }
 
   input[type="date"]:focus { border-color: var(--gold-dim); }
+
+  .assistant-section {
+    margin-top: 36px;
+  }
+
+  .missed-call-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .missed-call-row {
+    display: grid;
+    grid-template-columns: 180px 120px 1fr 120px;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 18px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+
+  .call-name {
+    color: var(--text);
+    font-size: 14px;
+  }
+
+  .call-phone,
+  .call-time,
+  .call-message {
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .call-message {
+    line-height: 1.4;
+  }
+
+  .category-badge {
+    color: var(--gold);
+    border: 1px solid var(--gold-dim);
+    padding: 4px 8px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-align: center;
+  }
 </style>
 </head>
 <body>
@@ -394,6 +454,12 @@
   <div class="topbar">
     <div class="topbar-logo">✂ Berber Paneli</div>
     <div class="topbar-right">
+      <select class="status-select" id="assistant-status" onchange="updateAssistantStatus()">
+        <option value="available">Müsaitim</option>
+        <option value="working">Çalışıyorum</option>
+        <option value="break">Moladayım</option>
+        <option value="closed">Kapalıyız</option>
+      </select>
       <span class="barber-name" id="barber-name-display"></span>
       <button class="btn-logout" onclick="doLogout()">Çıkış</button>
     </div>
@@ -441,6 +507,13 @@
     <div id="appointments-container">
       <div class="loading"><span class="spinner"></span> Yükleniyor...</div>
     </div>
+
+    <div class="assistant-section">
+      <div class="section-title">Kaçan Aramalar</div>
+      <div id="missed-calls-container">
+        <div class="loading"><span class="spinner"></span> Yükleniyor...</div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -451,7 +524,15 @@
 
   const DAYS = ['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'];
   const MONTHS = ['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
-  const SERVICES = { haircut: 'Saç Kesimi', shave: 'Tıraş', beard_trim: 'Sakal', full_service: 'Komple', other: 'Diğer' };
+  const SERVICES = {
+    haircut: 'Saç Kesimi',
+    shave: 'Tıraş',
+    beard_trim: 'Sakal',
+    full_service: 'Komple',
+    hair_coloring: 'Boya',
+    hair_wash: 'Yıkama',
+    other: 'Diğer'
+  };
   const STATUS_TR = { pending: 'Bekliyor', confirmed: 'Onaylı', completed: 'Tamamlandı', cancelled: 'İptal' };
 
   // Sayfa açılışında oturum kontrolü
@@ -508,11 +589,51 @@
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('dashboard-screen').style.display = 'block';
     document.getElementById('barber-name-display').textContent = currentUser?.name || '';
+    document.getElementById('assistant-status').value = currentUser?.assistantStatus || 'working';
 
     const picker = document.getElementById('date-picker');
     picker.value = todayStr();
     updateDateHeader(new Date());
+    loadAssistantProfile();
     loadAppointments();
+    loadMissedCalls();
+  }
+
+  async function loadAssistantProfile() {
+    try {
+      const res = await fetch(`${API}/api/assistant/profile`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.status === 401) { doLogout(); return; }
+      if (!res.ok) return;
+      currentUser = await res.json();
+      localStorage.setItem('berber_user', JSON.stringify(currentUser));
+      document.getElementById('assistant-status').value = currentUser?.assistantStatus || 'working';
+      document.getElementById('barber-name-display').textContent = currentUser?.name || '';
+    } catch (e) {
+      // Profil yüklenemezse panel mevcut oturum bilgisiyle devam eder.
+    }
+  }
+
+  async function updateAssistantStatus() {
+    const assistantStatus = document.getElementById('assistant-status').value;
+    try {
+      const res = await fetch(`${API}/api/assistant/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ assistantStatus })
+      });
+      if (res.status === 401) { doLogout(); return; }
+      if (!res.ok) return;
+      const data = await res.json();
+      currentUser = data.profile;
+      localStorage.setItem('berber_user', JSON.stringify(currentUser));
+    } catch (e) {
+      document.getElementById('assistant-status').value = currentUser?.assistantStatus || 'working';
+    }
   }
 
   function todayStr() {
@@ -603,6 +724,44 @@
 
     } catch (e) {
       container.innerHTML = '<div class="empty-state">Bağlantı hatası. Sunucu çalışıyor mu?</div>';
+    }
+  }
+
+  async function loadMissedCalls() {
+    const container = document.getElementById('missed-calls-container');
+    container.innerHTML = '<div class="loading"><span class="spinner"></span> Yükleniyor...</div>';
+
+    try {
+      const res = await fetch(`${API}/api/assistant/missed-calls?limit=8`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (res.status === 401) { doLogout(); return; }
+      const calls = await res.json();
+
+      if (!calls.length) {
+        container.innerHTML = '<div class="empty-state">Kaçan arama kaydı bulunmuyor.</div>';
+        return;
+      }
+
+      container.innerHTML = '<div class="missed-call-list">' +
+        calls.map(call => {
+          const time = new Date(call.callAt);
+          const label = call.fromName || 'Bilinmeyen kişi';
+          return `
+            <div class="missed-call-row">
+              <div>
+                <div class="call-name">${label}</div>
+                <div class="call-phone">${call.fromPhone}</div>
+              </div>
+              <div class="category-badge">${call.contactCategory}</div>
+              <div class="call-message">${call.autoReplyMessage || 'Otomatik mesaj yok'}</div>
+              <div class="call-time">${time.toLocaleDateString('tr-TR')} ${time.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}</div>
+            </div>`;
+        }).join('') +
+      '</div>';
+    } catch (e) {
+      container.innerHTML = '<div class="empty-state">Kaçan aramalar yüklenemedi.</div>';
     }
   }
 </script>

@@ -1,5 +1,6 @@
 node_modules/
 .env
+.env.save
 .env.local
 .env.*.local
 dist/
@@ -18,3 +19,7 @@ pids
 *~
 claudeapikey
 supabase_key
+jws_secret
+ngrok_kodlar
+*.zip
+*.tar.gz
