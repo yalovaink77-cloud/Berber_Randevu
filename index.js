@@ -14,6 +14,7 @@ app.use(express.json());
 app.use(express.static("dashboard/public"));
 
 app.use('/api/auth', authRoutes);
+app.use('/api/services', authenticate, appointmentRoutes);
 app.use('/api/appointments', authenticate, appointmentRoutes);
 app.use('/api/assistant', authenticate, assistantRoutes);
 // WhatsApp Webhook
